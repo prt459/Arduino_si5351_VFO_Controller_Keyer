@@ -17,7 +17,7 @@ Notes:
 Status: This script works but I make no promises as to code quality or unimplemented features!
 
 SP_IV VFO:
-SP_IV stands for Summit Prowler 4.  Summit Prowlers are my series of scratch-built QRP tranceivers that I build and operate on SOTA activations.  The fourth rig is a multiband SSB/CW single conversion (high-side VFO) superhet.  SP_IV_VFO_Controller.ino is the VFO/controller script for this rig.  It is under active development as of October 2017.  This script abolishes manual band selection, instead, it provides 10 VFOs which may be tuned anywhere in the HF spectrum; the script detects the right filters to switch in based on the current frequency.  
+SP_IV stands for Summit Prowler 4.  Summit Prowlers are my series of scratch-built QRP tranceivers that I build and operate on SOTA activations.  The fourth rig is a multiband SSB/CW single conversion (high-side VFO) superhet.  SP_IV_VFO_Controller.ino is the VFO/controller script for this rig.  It is under development (from Oct 2017).  This script abolishes manual band selection, instead, it provides 10 VFOs which may be tuned anywhere in the HF spectrum; the script detects the right filters to switch in based on the current frequency.  
 
 Notes:
 * VK3HN's Summit Prowler homebrew rigs: 
@@ -26,12 +26,14 @@ https://vk3hn.wordpress.com/2016/12/27/summit-prowler-two-a-scratch-built-30m-cw
 https://vk3hn.wordpress.com/2017/03/27/homebrew-160-meter-amcw-transmitter-receiver/
 
 * Uses si5351 clocks 0 and 2 for VFO and BFO; VFO is 12MHz (IF) above received signal on each band 
-* assumes a 16*2 LCD
-* does not use EEPROM yet
-* includes s-meter code (untested)
+* uses NT7S si5351 library 
+* all #DEFINEs at the top of the file for parameter setting 
+* assumes a 16*2 LCD, but this is easy to change
+* writes VFO and current frequency to EEPROM for power-on restoration 
+* includes s-meter code 
 * includes code to use I2C to a PCF8574 for band switching filters
 * includes interrupt damping (only acts on every nth interrupt, added to slow down the 360ppt optical encoder I used)
-* to be added: PTT Line sensing, T/R relay driver, ND6T power/SWR reading, CW keyer
+* PTT Line sensing, T/R relay driver, ND6T power/SWR reading, CW keyer. 
 
 Good luch experimenting with these scripts, please let me know if you use them!  
 
