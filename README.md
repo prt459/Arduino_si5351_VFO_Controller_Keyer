@@ -31,9 +31,9 @@ Feature summary:
 * includes a Tune function (behind a front panel long-push push button) that drops a continuous carrier on the current frequency (no offset) for a parameterised 3 seconds, for testing, tune-up etc.   
 
 Notes:
-* Uses the following libraries: si5351 (NT7S), Wire (Arduino), EEPROM (Arduino), PCF8574 (Arduino), Rotary (Arduino) 
+* Uses the following libraries: etherkit/si5351Arduino, Wire (Arduino), EEPROM (Arduino), PCF8574 (Arduino), Rotary (Arduino) 
 *  - for LCD: LiquidCrystal (Arduino)
-*  - for OLED: SSD1306Ascii (Bill Greiman)
+*  - for OLED: greiman/SSD1306Ascii
 * VK3HN's 'Summit Prowler' homebrew rigs using this script: 
 *  https://vk3hn.wordpress.com/2018/02/16/summit-prowler-iv-a-six-band-scratch-built-80m-to-17m-5w-ssb-cw-transceiver-for-portable-and-sota-use/ 
 *  https://vk3hn.wordpress.com/2018/10/25/a-scratchbuilt-g6lbq-bitx-walkie-talkie-for-40-and-20m-ssb-cw/ 
