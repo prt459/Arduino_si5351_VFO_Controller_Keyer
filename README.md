@@ -1,23 +1,26 @@
 # vk3hn_VFO_controller
-Two VFO/controllers for a multi-band transceiver, targeting Arduino Nano and si5351. The VFOs are Progressive_VFO.ino and SP_IV_VFO_Controller.ino.    
-
-PROGRESSIVE VFO:
-Progressive_VFO.ino was written for my build of the Progressive Receiver (Wes W7ZOI and John K5IRK), a classic design that I reproduced, with changes, in early 2017.  This VFO supports explicit band switching across all HF amateur bands, 3 VFOs on each band, mode and frequency persistence over power-cycle.  Because Progressive is a dual conversion superhet, the script uses all 3 si5351 VFOs (VFO, heterodyne oscillator, BFO).  A standalone script (Progressive_VFO_initialiser.ino) must be run once before Progressive_VFO.ino to initialise EEPROM values.  
-
-Notes:
-* Reference to project: "A Progressive Communications Receiver" November '81 QST by W7ZOI, Wes Hayward and K5IRK, John Lawson. Subsequently also published for several years as a design in the ARRL Handbook circa '85 - '90 as "A High-Performance Communications Receiver".
-* Written for a 20*2 LCD
-* Targets Nano
-* Traces variable values and other state on Serial at 9600 
-* Uses a bank of 5 pushbuttons/switches on one of the analog inputs for control functions 
-* rotary encoder on interrupts 
-* uses Jason NT7S si5351 library
-* Here is a Youtube video of the Progressive VFO in operation: https://www.youtube.com/watch?v=G19XXfZzdbQ 
-
-Status: This script works but I make no promises as to code quality or unimplemented features!
+A VFO/controller for a multi-band SSB/CW transceiver, targeting Arduino Nano and si5351. The VFO main script is SP_VFO_Controller.ino. 
 
 SP_IV VFO:
-SP_IV stands for Summit Prowler 4.  Summit Prowlers are my series of scratch-built QRP tranceivers that I build and operate on SOTA activations.  The fourth rig is a multiband SSB/CW single conversion (high-side VFO) superhet.  SP_IV_VFO_Controller.ino is the VFO/controller script for this rig.  It is under development (from Oct 2017).  This script abolishes manual band selection, instead, it provides 10 VFOs which may be tuned anywhere in the HF spectrum; the script detects the right filters to switch in based on the current frequency.  
+SP_IV stands for Summit Prowler 4.  Summit Prowlers are my series of scratch-built QRP tranceivers that I have been building for shack and SOTA activations since 2017.  The fourth rig in this series is a multiband SSB/CW single conversion (high-side VFO) superhet.  SP_VFO_Controller.ino is the VFO/controller script for this rig.  This script supports automatic band (bandpass and low pass filter) selection
+
+Feature summary:
+* Uses si5351 clock 0 for VFO 
+* optionally uses si5351 clock 2 for the BFO; high-side IF is parameterised; 
+* automatically selects USB or LSB BFO based on current receiver frequency
+* supports any number of VFOs (defaults to 10)
+* uses Jason NT7S's si5351 library 
+* extensive (and hopefully descriptive) use of #DEFINEs at the top of the file for parameter setting 
+* assumes an HD7044 style 16*2 LCD, also 20x4, 8x2; also supports OLED (128x64)
+* writes VFO, selected VFO, and other current parameters to EEPROM for power-on restoration 
+* includes s-meter code 
+* includes code to use I2C to a PCF8574 for band switching (band pass and low pass) filters
+* includes interrupt damping (to slow down fast optical encoders)
+* PTT line sensing, receiver muting and T/R relay driver, with T/R sequencing  
+* ND6T power/SWR monitoring and metering code 
+* Memory CW keyer, optional adjustable speed, semi-break-in, any number of (hard coded) pre-canned CW messages
+* generates CW carrier via si5351 CLK#1, with 700Hz CW offset above or below receiver frequency
+* includes a Tune function (behind a front panel long-push push button) that drops a continuous carrier on the current frequency (no offset) for a parameterised 3 seconds, for testing, tune-up etc.   
 
 Notes:
 * VK3HN's Summit Prowler homebrew rigs: 
@@ -25,15 +28,10 @@ https://vk3hn.wordpress.com/2016/10/25/summit-prowler-one-a-homebrew-7mhz-ssb-qr
 https://vk3hn.wordpress.com/2016/12/27/summit-prowler-two-a-scratch-built-30m-cw-transceiver-wilderness-sst-for-sota/
 https://vk3hn.wordpress.com/2017/03/27/homebrew-160-meter-amcw-transmitter-receiver/
 
-* Uses si5351 clocks 0 and 2 for VFO and BFO; VFO is 12MHz (IF) above received signal on each band 
-* uses NT7S si5351 library 
-* all #DEFINEs at the top of the file for parameter setting 
-* assumes a 16*2 LCD, but this is easy to change
-* writes VFO and current frequency to EEPROM for power-on restoration 
-* includes s-meter code 
-* includes code to use I2C to a PCF8574 for band switching filters
-* includes interrupt damping (only acts on every nth interrupt, added to slow down the 360ppt optical encoder I used)
-* PTT Line sensing, T/R relay driver, ND6T power/SWR reading, CW keyer. 
+For discussion of this project and some information to help you decide if this is the script for you, see this repository's Wiki.
 
-Good luch experimenting with these scripts, please let me know if you use them!  
+Raise an issue, defect or feature request.  
 
+Please let me know if you use this code, with or without change. 
+
+Paul Taylor, VK3HN.  11 Dec 2018.
