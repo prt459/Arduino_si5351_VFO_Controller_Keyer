@@ -1,4 +1,4 @@
- /*
+/*
 Arduino Nano script for homebrew multiband SSB/CW transceivers. 
 Written by Paul Taylor, VK3HN (https://vk3hn.wordpress.com/) standing on the shoulders of:
   - Przemek Sadowski, SQ9NJE (basic controller script)
@@ -10,8 +10,9 @@ Targets Ashar Farhan VU2ESE's Arduino Nano/si5351 module (Raduino).
 V1.0, 20 Jun 2017 - first version for homebrew Arduino/si5351 VFO
 V1.4, 27 Nov 2018 - revised version with CW keyer for homebrew SP_IV transceiver
 V1.5, 3 Dec 2018  - Refactored #define's and code blocks for project labels
+V1.6, 31 Mar 2019 - various minor updates arising from latest rig project
 
-Labels that need to be #define'd:
+Labels that need to be #define'd for your target radio/rig/project:
   Rotary encoder         {ENCODER_OPTICAL_360, ENCODER_MECHANICAL} 
   Display technology     {DISPLAY_LCD, DISPLAY_OLED}
   Display type           {LCD_20X4, LCD_16X2, LCD_8X2, OLED_128X64}
@@ -45,17 +46,17 @@ Labels that need to be #define'd:
 // common #define's that precede other declarations
 #define LCD_RS    8  // Register Select is LCD pin 4 
 #define LCD_E     9  // Enable/clock LCD pin 6
-#define LCD_D4   10  // LCD D4 is LCD pin 11
-#define LCD_D5   11  // LCD D5 is LCD pin 12
-#define LCD_D6   12  // LCD D6 is LCD pin 13
-#define LCD_D7   13  // LCD D7 is LCD pin 14 
+#define LCD_D4   10  // LCD D4 
+#define LCD_D5   11  // LCD D5 
+#define LCD_D6   12  // LCD D6 
+#define LCD_D7   13  // LCD D7  
 
 #define BUTTON_HELD_MS 700  // button down period in mS required to activate 2nd pushbutton function
 #define TUNE_MS       4000  // tune (key down) period (mS)
-#define LPF_DROPOUT_DELAY 20000  // period of inactivity before the LPF drops out to save battery (mS)
-#define VFO_DRIVE_THRESHOLD  14000000ULL  // threshold freq above which a higher VFO drive is used
-
-
+#define LPF_DROPOUT_DELAY 8000  // period of inactivity before the LPF drops out to save battery (mS)
+#define FAN_DROPOUT_DELAY  5000  // period of inactivity before the fan drops out to save battery (mS)
+#define VFO_DRIVE_THRESHOLD 18000  // threshold freq above which a higher si5351 clock output level on the VFO clock is used
+#define CO_DRIVE_THRESHOLD  18000  // threshold freq above which a higher si5351 clock output level on the carrier oscillator (CW) clock is used
 
 
 // specific declarations and #define's for each project
@@ -140,17 +141,25 @@ LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7);
 #define BFO_TUNE_LO    11990000ULL  // lowest BFO frequency
 #define BFO_TUNE_HI    12005000ULL  // highest BFO frequency
 volatile uint32_t USB = 11998500ULL;  // the reference BFO freq for LSB, may be tuned, put in EEPROM once
-volatile uint32_t LSB = 11995500ULL;  // the reference BFO freq for USB, may be tuned, put in EEPROM once
+volatile uint32_t LSB = 11996000ULL;  // the reference BFO freq for USB, may be tuned, put in EEPROM once
+// original --  11,995,500ULL; 
 #define DISPLAY_OLED
 #define OLED_128X64
 #include "SSD1306Ascii.h"
 #include "SSD1306AsciiAvrI2c.h"
 #define I2C_OLED_ADDRESS 0x3C
-#define RST_PIN -1    // Define proper RST_PIN if required
+#define RST_PIN -1     // Define proper RST_PIN if required
   SSD1306AsciiAvrI2c oled;
 #define NBR_VFOS    10 // number of selectable VFOs 
 #define CW_KEYER       // include the CW keyer code
 // #define DIAGNOSTIC_DISPLAY  // allow use of the OLED for tracing simple values (eg button values)
+
+#define TX_SSB_MUTE_LINE 9    // D9 is used to mute the mic amp to silence a T/R squeal in SP_VI 
+                              // normally high, this line goes low TX_SSB_MUTE_DELAY mS after PTT when transmitting SSB
+#define TX_SSB_MUTE_DELAY 350 // delay (mS) before the mic amp is unmuted after SSB PTT 
+
+#define CO_SUPPLY  8          // this pin controls a high side DC switch to enable the carrier oscillator when keyed
+
 #endif
 
 
@@ -169,13 +178,12 @@ int  diagnostic_int = 0;       // trace an integer value
 #define ENCODER_A 3  // Encoder pin A
 #define PTT_SENSE 4  // sense the PTT button being pressed (low == transmit)
 #define MUTE_LINE 5  // receiver mute (high == mute)
-//#define KEY         // key sense
 #define TRANSMIT_LINE 7 // controls the T/R relay (high == transmit)
 
 // Arduino Nano analogue pins
 #define SWITCH_BANK       A0 // front panel push buttons
 
-#ifdef CW_KEYER
+#ifdef  CW_KEYER
 #define PIN_PADDLE        A1 // paddle on analog pin 1
 #define PIN_PUSHBTTN_REAR A2 // keyer memory pushbuttons on analog pin 2
 #define PIN_KEYER_SPEED   A3 // speed potentiometer wiper
@@ -184,6 +192,9 @@ int  diagnostic_int = 0;       // trace an integer value
 #define PIN_S_METER       A3 // s-meter TBA
 //                        A4    SDA
 //                        A5    SCL
+#define PIN_PWR_METER     A6 // analogue pin for relative RF sensing circuit
+int pwr_val = 0;             // stores the last reading of the RF power sensing input (on pin PIN_PWR_METER)
+
 #ifdef VSWR_METER
 #define PIN_SWR_FWD       A6 // analogue pin for SWR bridge forward
 #define PIN_SWR_REV       A7 // analogue pin for SWR bridge reverse
@@ -217,6 +228,7 @@ int  diagnostic_int = 0;       // trace an integer value
 // LPF selector PCF8574 x40
 
 #define I2C_BPF_DEMUX   0x20         // default I2C address of the BPF PCF8574 
+#define I2C_LPF_DEMUX   0x24         // default I2C address of the LPF PCF8574 
 
 #ifdef SS_160_80_40_AM_TX
 #define I2C_BPF_DEMUX   0x38         // I2C address of the BPF PCF8574 in this rig
@@ -226,9 +238,12 @@ int  diagnostic_int = 0;       // trace an integer value
 #define I2C_BPF_DEMUX   0x38         // I2C address of the BPF PCF8574 in this rig
 #endif
 
-PCF8574 PCF_BPF(I2C_BPF_DEMUX);       
+#ifdef SP_VI
+#define I2C_BPF_DEMUX   0x20         // I2C address of the BPF PCF8574 in this rig
+#define I2C_LPF_DEMUX   0x3E         // I2C address of the LPF PCF8574 in this rig
+#endif
 
-#define I2C_LPF_DEMUX   0x24         // default I2C address of the LPF PCF8574 
+PCF8574 PCF_BPF(I2C_BPF_DEMUX);       
 PCF8574 PCF_LPF(I2C_LPF_DEMUX);  
 
 
@@ -246,9 +261,19 @@ PCF8574 PCF_LPF(I2C_LPF_DEMUX);
 
 bool key_down = false; 
 unsigned long char_sent_ms, curr_ms;
-byte dot_length_ms = 50;   // keyer speed ((dot length mS)), 60 equates to 10 wpm.
+
+// set the CW keyer speed, lower is faster, 60 is 10 w.p.m.
+#ifdef SP_IV
+byte  dot_length_ms = 55;  
+#endif
 #ifdef SP_V
-dot_length_ms = 60;  // make the CW slower, for pushbutton CW
+byte  dot_length_ms = 60;  // make the CW slower, for pushbutton CW
+#endif
+#ifdef SP_VI
+byte  dot_length_ms = 55;  // 
+#endif
+#ifdef SS_EI9GQ
+byte  dot_length_ms = 55;  
 #endif
                          
 bool space_inserted;
@@ -320,7 +345,8 @@ String morse_msg[] = {"CQ CQ VK3HN VK3HN K", "DE VK3HN ", "VK3HN ", "73 TU . ." 
 #endif
 
 #ifdef SP_VI
-String morse_msg[] = {"CQ SOTA VK3HN/P K", "CQ VK3HN/P K" };
+String morse_msg[] = {"CQ SOTA VK3HN/P K", "DE VK3HN" };
+//String morse_msg[] = {"1", "2" };  // for testing
 #endif
 
 byte   curr_msg_nbr;   // index into morse_msg[] array
@@ -382,6 +408,35 @@ unsigned long last_freq_change_ms;
 bool eeprom_written_since_last_freq_change; 
 bool changed_f = false;
 
+
+
+//******************************************
+// diagnostic code 
+/*
+void PCF8574_test()
+{
+  
+  Serial.println();  
+  Serial.println("Test PCF_LPF...");   
+  
+  for (byte i=0; i<4; i++) {    
+    Serial.print("toggle pin ");  Serial.println(i);  
+    PCF_LPF.write(i, 1);
+    Serial.print("err:");   Serial.println(PCF_LPF.lastError());
+    delay(1000); 
+
+    PCF_LPF.write(i, 0);  
+    Serial.print("err:");   Serial.println(PCF_LPF.lastError());
+    delay(200);
+  }
+}
+
+
+//******************************************
+*/
+
+
+
 /**************************************/
 /* Interrupt service routine for encoder frequency change */
 /**************************************/
@@ -432,7 +487,33 @@ void set_frequency(short dir)
     }
   }  
   changed_f = 1;
-}
+};
+
+
+int read_analogue_pin(byte p)
+{
+// Take an averaged reading of analogue pin 'p'  
+  int i, val=0, nbr_reads=2; 
+  for (i=0; i<nbr_reads; i++)
+  {
+    val += analogRead(p);
+    delay(1); 
+  }
+  return val/nbr_reads; 
+};
+
+
+int read_keyer_speed()
+{ 
+  int n = read_analogue_pin((byte)PIN_KEYER_SPEED);
+  //Serial.print("Speed returned=");
+  //Serial.println(n);
+  dot_length_ms = 60 + (n-183)/5;   // scale to wpm (10 wpm == 60mS dot length)
+                                     // '511' should be mid point of returned range
+                                     // change '5' to widen/narrow speed range...
+                                     // smaller number -> greater range  
+  return n;
+};
 
 
 byte get_front_panel_button()
@@ -441,7 +522,7 @@ byte get_front_panel_button()
 {
   byte b=0; 
   int z;
-  z = read_analogue_pin(SWITCH_BANK);
+  z = read_analogue_pin((byte)SWITCH_BANK);
 //  Serial.print("Frnt bttn="); Serial.println(z);
 
 #ifdef SP_V
@@ -492,9 +573,8 @@ byte get_front_panel_button()
   
 #ifdef DIAGNOSTIC_DISPLAY
   diagnostic_flag = true;  // trace on the display as a diagnostic
-  diagnostic_int = z;      // trace 'z' 
+//  diagnostic_int = z;      // trace 'z' 
   refresh_display();
-//  delay(300);
 #endif                                       
 #endif
 
@@ -638,39 +718,78 @@ void refresh_OLED(){
   if(hz<100) oled.print("0");
   oled.println(hz, DEC);
   
-//  oled.setCursor(0, 6);
+  oled.setCursor(0, 6);
   oled.print("V");
   oled.print(v+1);
   oled.print(" ");
-//  oled.setCursor(0, 7);
+  oled.setCursor(0, 7);
+
+  int val = 0, s = 0;
   if(!mode_tx) 
   {
     oled.setCursor(30, 6);
     oled.print("S");
     oled.setFont(s_meter10x15);
-    byte c=0, s = (rand()%2)+2;
-//    Serial.println(s);
+
+    // read and format the S-meter 
+//    byte s = (rand()%2)+2;
+    val = analogRead(PIN_S_METER);
+    
+    // do band-specific sensitivity scaling
+    if((VFOSet[v].vfo >= FILTER_80_LB) && (VFOSet[v].vfo <= FILTER_80_UB)) val = val*3;   // '2' is the magic number for 80m
+    
+    s = map(val, 0, 550, 8, 1);  // map s-meter analogue reading to s-scale
+    
+    // now add some random movement (make the meter flicker up by 1 S-point to animate it!)
+    s = s + 1 + rand()%2;
+     
+//    Serial.print(" s=");  Serial.print(s);  Serial.print(" s2=");  Serial.println(s2);     
+    byte c=0;
     for(byte j=1; j<=s; j++){
       oled.print((char)j);
       c++;
     };
     oled.setFont(fixed_bold10x15);
     for(byte k=8; k>c; k--) oled.print(" "); // right pad the s-meter display space
-//    oled.print((char)2);
-//    oled.print((char)3);
-//    oled.print((char)4);
-//    oled.print((char)5);
-//    oled.print((char)6);
-//    oled.print((char)7);
-//    oled.print((char)8); 
-//  oled.print((char)9);
-//    delay(10);
   }
-  else         
-    oled.print("P--------");
-    
+  else
+  {
+    // in transmit mode, so display a relative RF power meter
+    if(!mode_cw) {
+      pwr_val = read_analogue_pin(PIN_PWR_METER);
+//      Serial.print(" refresh_OLED():: pwr_val=");  Serial.println(pwr_val);       
+    }
+    refresh_pwr_meter();
+  };
 #endif // #ifdef DISPLAY_OLED
 }
+
+
+void refresh_pwr_meter()
+{
+#ifdef DISPLAY_OLED
+  // write to the power meter line on the OLED 
+  oled.setCursor(30, 6);
+  oled.print("P");
+  oled.setFont(s_meter10x15);
+        
+  // do band-specific sensitivity scaling
+//    if((VFOSet[v].vfo >= FILTER_80_LB) && (VFOSet[v].vfo <= FILTER_80_UB)) val = val*3;   // '2' is the magic number for 80m
+
+  // NOTE: the RF power sensing analog pin is read elsewhere, and the value stored in global pwr_val 
+  byte s = map(pwr_val, 0, 550, 1, 8);
+    
+//  Serial.print(" refresh_pwr_meter()::pwr_val=");  Serial.print(pwr_val);  Serial.print(" s=");  Serial.println(s);  
+  byte c=0;
+  for(byte j=1; j<=s; j++){
+    oled.print((char)j);
+    c++;
+  };
+  oled.setFont(fixed_bold10x15);
+  for(byte k=8; k>c; k--) oled.print(" "); // right pad the pwr-meter display space
+#endif // #ifdef DISPLAY_OLED
+};
+
 
 
 void refresh_LCD() {
@@ -840,6 +959,7 @@ void set_filters(uint32_t f)
     // select the appropriate filter set for the frequency passed in
     // Note that LPF_line and curr_line are global
     byte BPF_line=0;  
+    bool band_changed = false;
 
     if ((f >= FILTER_160_LB) && (f <= FILTER_160_UB)) 
     {
@@ -870,12 +990,17 @@ void set_filters(uint32_t f)
     {
       BPF_line = 5;
       LPF_line = 5;
+#ifdef SP_VI
+      BPF_line = 1;  // need to do a specific mapping here to deal with a hardware quirk in SP_VI!
+#endif
     }
     else if((f >= FILTER_17_LB) && (f <= FILTER_17_UB))   
     {
       BPF_line = 6;
       LPF_line = 5;
-    }
+    };
+
+//   Serial.print("BPF_line, LPF_line="); Serial.print(BPF_line);Serial.print(","); Serial.println(LPF_line); 
 
   // handle the BPFs, if the band has changed
     byte prev_BPF_line = curr_line; 
@@ -883,31 +1008,45 @@ void set_filters(uint32_t f)
     {
         // *** raise the appropriate control line 
         // (where 0 means no line which will implement 'out of band' protection
-        for (int i=0; i<7; i++) PCF_BPF.write(i, 0); //turn all pins of the I/O expander off 
-        delay(100);
+        for (int i=0; i<8; i++) PCF_BPF.write(i, 0); //turn all pins of the I/O expander off 
+        delay(50);
         if(BPF_line > 0){
+/*
+           // may need to do some BPF_line mapping here...
+#ifdef SP_VI
+           if(BPF_line == 1) BPF_line = 5;
+#endif    
+*/
            PCF_BPF.write(BPF_line - 1, 1);  //turn the band-specific pins of the I/O expander on 
            Serial.print("New band:");
            Serial.println(BPF_line);
-           delay(100); 
+           delay(50); 
+           band_changed = true;
         }
         curr_line = BPF_line;  
     }
 
     // handle the LPFs, if the band has changed
-    if(prev_BPF_line != curr_line)
+    if(band_changed)
     {
         // the band changed, so reset the LPF
-        for (int i=0; i<5; i++) PCF_LPF.write(i, 0); //turn all pins of the I/O expander off 
+        for (byte i=0; i<8; i++) PCF_LPF.write(i, 0); //turn all pins of the I/O expander off 
                                                      // all relays will drop out
         if(LPF_line > 0){
-           PCF_LPF.write(LPF_line - 1, 1);  //turn the band-specific pin of the I/O expander on 
+           byte pcf_pin = LPF_line - 1;
+           // handle LPF_line to PCF8574 pin mapping for specifric rigs here
+#ifdef SP_VI
+           pcf_pin--;  // need to do a specific mapping here to deal with SP_VI use of LPF PCF8574 pins
+#endif      
+           PCF_LPF.write(pcf_pin, 1);  //turn the band-specific pin of the I/O expander on 
+//           Serial.print("1:");   Serial.println(PCF_LPF.lastError());
+
            Serial.print("New LPF:");
            Serial.println(LPF_line);
            LPF_engaged = true; 
-           delay(100); 
+//           delay(20); 
         }
-    }
+    };
 
 #ifdef SP_V
     // convenient place to implement band switching (40/20m) in SP-V
@@ -957,20 +1096,29 @@ void receive_to_TRANSMIT()
   mode_tx = true;
   Serial.println("receive_to_TRANSMIT()");
   digitalWrite(MUTE_LINE, 1);     // mute the receiver
-  delay(20);
+  delay(1);
 
   // pull in the current LPF (if it is not engaged already)
   if(!LPF_engaged)
   {
-    PCF_LPF.write(LPF_line - 1, 1);  //turn the band-specific pin of the I/O expander on 
-    delay(20);
+    byte pcf_pin = LPF_line - 1;
+#ifdef SP_VI
+           pcf_pin--;  // need to do a specific mapping here to deal with SP_VI use of LPF PCF8574 pins
+#endif
+    PCF_LPF.write(pcf_pin, 1);  //turn the band-specific pin of the I/O expander on 
+//     Serial.print("2:");   Serial.println(PCF_LPF.lastError());
+
+    delay(5);
     Serial.print("JIT LPF:"); Serial.println(LPF_line);
     LPF_engaged = true; 
     last_T_R_ms = millis(); 
+
+    // start the fan...
+ 
   };
   
   digitalWrite(TRANSMIT_LINE, 1); // pull in the T/R relay
-  delay(10); 
+  delay(5); 
   // digitalWrite(6, 1); // test
   //  changed_f = true;  // make sure the display refreshes
 
@@ -989,13 +1137,32 @@ void receive_to_TRANSMIT()
     volatile uint32_t f; 
     f = VFOSet[v].vfo; 
     // choose whether to add or subtract the CW offset
-    if(f >= SIDEBAND_THRESHOLD) f += CW_TONE_HZ; 
-    else f -= CW_TONE_HZ;
+    if(f >= SIDEBAND_THRESHOLD) 
+      f += CW_TONE_HZ; 
+    else 
+      f -= CW_TONE_HZ;
     
     si5351.set_freq(f * SI5351_FREQ_MULT, SI5351_CLK1);
+    if(f < CO_DRIVE_THRESHOLD)
+      si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_2MA); 
+    else
+      si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_6MA); 
+    
     si5351.drive_strength(SI5351_CLK1, SI5351_DRIVE_2MA); 
     si5351.output_enable(SI5351_CLK1, 0); // turn the CW clock off until keyed
     dot_dash_sent = 0;  // count nbr chars sent this transmit period
+
+#ifdef SP_VI
+    digitalWrite(CO_SUPPLY, 1);  // powers up the carrier oscillator buffer 
+#endif    
+  }
+  else
+  {
+#ifdef SP_VI
+    // mode is SSB, so un-mute the mic amp
+    delay(TX_SSB_MUTE_DELAY);
+    digitalWrite(TX_SSB_MUTE_LINE, 1); // un-mute the mic amp (to silence a T/R squeal in SP_VI) 
+#endif
   }
 };
 
@@ -1005,10 +1172,9 @@ void TRANSMIT_to_receive()
   mode_tx = false;
   Serial.println("TRANSMIT_to_receive()");
   digitalWrite(TRANSMIT_LINE, 0); // drop out the T/R relay
-  delay(20);
+  delay(5);
   digitalWrite(MUTE_LINE, 0);     // un-mute the receiver
   // digitalWrite(6, 0); // test
-//  changed_f = true;  // make sure the display refreshes
 
   if(mode_cw)
   {
@@ -1016,16 +1182,28 @@ void TRANSMIT_to_receive()
     si5351.output_enable(SI5351_CLK0, 1);  //  turn the VFO back on again 
     if(VFOSet[v].vfo < VFO_DRIVE_THRESHOLD)
       si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_2MA); 
-   else
+    else
       si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA); 
       
 #ifdef BFO_ENABLED
     si5351.output_enable(SI5351_CLK2, 1);  //  turn the BFO back on again 
 #endif 
 //    Serial.println("VFO enabled");
+#ifdef SP_VI
+    digitalWrite(CO_SUPPLY, 0);  // power down the carrier oscillator buffer 
+#endif
+  }
+  else
+  {
+    // mode is SSB
+#ifdef SP_VI
+    // mode is SSB, so mute the mic amp
+    digitalWrite(TX_SSB_MUTE_LINE, 0); // mute the mic amp (to silence a T/R squeal in SP_VI) 
+#endif
   };
   mode_cw = false;  // mode will be set next time the paddle or keyer is touched
   last_T_R_ms = millis();  // start the LPF drop out timer from now
+  pwr_val = 0;  // flush out residual RF power reading
 };
 
 
@@ -1036,8 +1214,6 @@ void tune()
   if(!mode_tx)
   {
     // prime CLK1 to the current frequency 
-//    volatile uint32_t f; 
-//    f = ; 
      si5351.set_freq(VFOSet[v].vfo * SI5351_FREQ_MULT, SI5351_CLK1);
      si5351.drive_strength(SI5351_CLK1, SI5351_DRIVE_2MA); 
      si5351.output_enable(SI5351_CLK1, 0); // turn the CW clock off until keyed
@@ -1070,7 +1246,8 @@ int morse_lookup(char c)
       return i;
   }
   return -1; 
-}
+};
+
 
 byte check_keyer_pushbutton()
 {
@@ -1094,13 +1271,13 @@ byte check_keyer_pushbutton()
 #endif
 #ifdef SP_VI
                                       // open (USB power: 840) (LiFePO+7812: 1023)  
-  if(z > 300 && z < 780) b = 1;       // L    (USB power: 418) (LiFePO+7812: 712)  
+  if(z > 300 && z < 990) b = 1;       // L    (USB power: 418) (LiFePO+7812: 712)  
   else if(z > 10 && z <= 300) b = 2;  // R    (USB power:  74) (LiFePO+7812: 122)  
                                       // both:(USB power:  66) (LiFePO+7812: 112)  
 #endif
 
   if(b>0){
-//      Serial.print("Keyer pushbutton="); Serial.print(b); Serial.print(", z="); Serial.println(z);
+      Serial.print("Keyer pushbutton="); Serial.print(b); Serial.print(", z="); Serial.println(z);
     }
   return b;
 }
@@ -1110,11 +1287,14 @@ byte check_paddle()
 {
 // Reads the paddle, returns the paddle number as a byte; 0 if not pressed  
   byte b=0; 
-  int  z;
+  int  z=0;
+
   z = read_analogue_pin(PIN_PADDLE);    // read the analog pin
+  
 #ifdef DIAGNOSTIC_DISPLAY
   diagnostic_flag = true;  // trace on the display as a diagnostic
   diagnostic_int = z;      // trace 'z' 
+//  delay(200);
 #endif 
 
 // Serial.print("Kyr pdl, z="); Serial.println(z);
@@ -1129,43 +1309,17 @@ byte check_paddle()
                                      // both: 407 for future reference
 #endif
 #ifdef SP_VI
-                                      // open (USB power: 846) (LiFePO+7812: 1023)  
-  if(z > 300 && z < 780) b = 1;       // L    (USB power: 421) (LiFePO+7812: 712)  
-  else if(z > 10 && z <= 300) b = 2;  // R    (USB power:  72) (LiFePO+7812: 122)  
-                                      // both:(USB power:  66) (LiFePO+7812: 112)  
+// SP-IV uses D11 and D12 for the paddle
+  if(!digitalRead(11)) b=2;
+  if(!digitalRead(12)) b=1;
 #endif
 
-  if(b>0){
-//      Serial.print("Kyr pdl, b="); Serial.print(b); 
-//      Serial.print(", z="); Serial.println(z); 
-  }
+//  if(b>0){
+//     Serial.print("Kyr pdl, b="); Serial.print(b); 
+//     Serial.print(", z="); Serial.println(z); 
+//  }
   return b;
-}
-
-
-int read_analogue_pin(byte p)
-{
-// Take an averaged reading of analogue pin 'p'  
-  int i, val=0, nbr_reads=4; 
-  for (i=0; i<nbr_reads; i++)
-  {
-    val += analogRead(p);
-    delay(2); 
-  }
-  return val/nbr_reads; 
-}
-
-int read_keyer_speed()
-{ 
-  int n = read_analogue_pin((byte)PIN_KEYER_SPEED);
-  //Serial.print("Speed returned=");
-  //Serial.println(n);
-  dot_length_ms = 60 + (n-183)/5;   // scale to wpm (10 wpm == 60mS dot length)
-                                     // '511' should be mid point of returned range
-                                     // change '5' to widen/narrow speed range...
-                                     // smaller number -> greater range  
-  return n;
-}
+};
 
 
 void set_key_state2(char k)
@@ -1217,6 +1371,10 @@ void send_dot()
   Serial.print(".");
   delay(dot_length_ms);  // key down for one dot period
   noTone(PIN_TONE_OUT);
+  
+  // read the RF power sensing circuit while the key is down and store the result for later display
+  pwr_val = read_analogue_pin(PIN_PWR_METER);
+
   set_key_state2('U');  
   dot_dash_counter++;
   dot_dash_sent++;
@@ -1232,6 +1390,10 @@ void send_dash()
   Serial.print("-");
   delay(dot_length_ms * CW_DASH_LEN);  // key down for CW_DASH_LEN dot periods
   noTone(PIN_TONE_OUT);
+
+  // read the RF power sensing circuit while the key is down and store the result for later display
+  pwr_val = read_analogue_pin(PIN_PWR_METER);
+
   set_key_state2('U');  
   dot_dash_counter++;
   dot_dash_sent++;
@@ -1404,7 +1566,17 @@ void setup()
 //  oled.println();
   delay(1000);
   oled.clear();
+
   pinMode(10, INPUT_PULLUP); // this rig uses D10 to read the encoder pushbutton for 'step' (radix) control
+  pinMode(11, INPUT_PULLUP); // this rig uses D11 for paddle LEFT
+  pinMode(12, INPUT_PULLUP); // this rig uses D12 for paddle RIGHT
+
+  pinMode(CO_SUPPLY, OUTPUT);  // this rig uses this digital pin to control DC power to the carrier osc buffer
+  digitalWrite(CO_SUPPLY, 0);  // power down the carrier oscillator buffer 
+
+  pinMode(TX_SSB_MUTE_LINE, OUTPUT); // this rig uses D9 to mute the mic amp, goes low after SSB PTT
+  digitalWrite(TX_SSB_MUTE_LINE, 0);  // mute the mic until ready to transmit SSB 
+
 #endif
 
 // reset the Band/Low Pass Filter controllers
@@ -1412,7 +1584,15 @@ void setup()
   {
     PCF_BPF.write(i, 0); //turn all the BPF relays off 
     PCF_LPF.write(i, 0); //turn all the LPF relays off 
+//    Serial.print(" 0: ");   Serial.println(PCF_LPF.lastError());
+
   }
+
+// ****** diagnostic -- remove ****************
+// test the PCF8574
+//  for(byte n=0; n<2; n++){ PCF8574_test(); }
+// ****** diagnostic -- remove ****************
+
 
 // set digital and analogue pins
   pinMode(SWITCH_BANK, INPUT_PULLUP); // switch bank is Pull-up
@@ -1469,9 +1649,14 @@ void setup()
   
   // initialise and start the si5351 clocks
   // si5351.set_correction(140); // use File/Examples/si5351Arduino-Jason
-  si5351.set_correction(1);      // to determine the correction using the serial monitor
+
+  
   si5351.init(SI5351_CRYSTAL_LOAD_8PF, 0, 0); //If using 27Mhz xtal, put 27000000 instead of 0
                                               // 0 is the default xtal freq of 25Mhz
+#ifdef SP_VI
+  si5351.set_correction(19100);      // to determine the correction using the serial monitor
+#endif    
+                                        
   si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);
   
   // choose a high or low BFO frequency
@@ -1613,7 +1798,7 @@ void loop()
       receive_to_TRANSMIT(); // PTT button pressed
       //refresh_display();
     };
-    delay(10);
+//    delay(10);
     if(digitalRead(PTT_SENSE)  &&  mode_tx) 
     {
       TRANSMIT_to_receive(); // PTT button released
@@ -1625,9 +1810,12 @@ void loop()
   if( (!mode_tx) && (millis() - last_T_R_ms) > LPF_DROPOUT_DELAY )
   {
 //    Serial.print("-drop LPF");     Serial.println(millis()); 
-    PCF_LPF.write(LPF_line-1, 0);
+    for (byte i=0; i<8; i++) PCF_LPF.write(i, 0); // easy way (just turn them all off) 
     LPF_engaged = false;
     last_T_R_ms = millis(); 
+
+    // stop the fan...
+    
   }
     
   //------------------------------------------------------------------------
@@ -1641,7 +1829,7 @@ void loop()
   while (button_nbr > 0)
   {
   // one of the multiplexed switches is being held down
-    delay(20);  // was 20
+    delay(5);  // was 20
     if(first_button_nbr == 0) first_button_nbr = button_nbr;
     old_button_nbr = button_nbr;
     button_nbr = get_front_panel_button();
@@ -1737,6 +1925,37 @@ void loop()
     }
     else
     {
+#ifdef SP_VI
+      switch (VFOSet[v].radix)
+      {
+        case 10:
+        {
+           VFOSet[v].radix = 100;
+        }
+        break;
+        
+        case 100:
+        {
+           VFOSet[v].radix = 1000;
+           // clear residual < 1kHz frequency component from the active VFO         
+           uint16_t f = VFOSet[v].vfo % 1000;
+           VFOSet[v].vfo -= f;
+        }
+        break;
+ 
+        case 1000:
+        {
+           VFOSet[v].radix = 100;
+        }
+        break;
+      
+        case 10000:
+        {
+           VFOSet[v].radix = 1000;
+        }
+        break;
+      } 
+#else
       switch (VFOSet[v].radix)
       {
         case 10:
@@ -1806,6 +2025,7 @@ void loop()
             break;
         }
       }
+#endif
     } // else
     changed_f = 1;
   }
@@ -1821,7 +2041,7 @@ void loop()
     activate_state2('T'); 
     refresh_display();  // to show 'CW' on the display  
     play_message(morse_msg[curr_msg_nbr-1], 0);  
-    delay(20); 
+    delay(5); 
     activate_state2('R');  
   };
 
@@ -1832,7 +2052,7 @@ void loop()
     mode_cw = true;
     activate_state2('T'); 
 #ifdef DISPLAY_OLED
-    if(dot_dash_sent == 0) refresh_display();  // only want to do this first time, as I2C OLED refresh is *slow*
+    if(dot_dash_sent == 3) refresh_pwr_meter();  // only want to do this first time, as I2C OLED refresh is *slow*
 #endif 
     if(j==PADDLE_L) send_dot();
     if(j==PADDLE_R) send_dash();
