@@ -38,4 +38,5 @@ Notes:
 * VK3HN's 'Summit Prowler' homebrew rigs using this script: 
 *  https://vk3hn.wordpress.com/2018/02/16/summit-prowler-iv-a-six-band-scratch-built-80m-to-17m-5w-ssb-cw-transceiver-for-portable-and-sota-use/ 
 *  https://vk3hn.wordpress.com/2018/10/25/a-scratchbuilt-g6lbq-bitx-walkie-talkie-for-40-and-20m-ssb-cw/ 
+*  https://vk3hn.wordpress.com/2019/05/01/summit-prowler-6-a-pocket-sized-ssb-cw-transceiver-for-80-40-30-and-20m/ 
 * Custom S-meter font: https://github.com/prt459/Arduino_si5351_VFO_Controller_Keyer/blob/master/s_meter_font.h
