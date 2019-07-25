@@ -1,7 +1,7 @@
 # vk3hn_VFO_controller
-A PLL VFO/controller for a multi-band SSB/CW transceiver, targeting Arduino Nano and si5351. The VFO main script is SP_VFO_Controller.ino. 
+A PLL VFO/controller for a multi-band SSB/CW transceiver, targeting Arduino Nano and si5351. The script is SP_VFO_Controller.ino. An initialiser script must be executed once to initialise EEPROM. 
 
-This script has been used for a number of  homebrew transceiver, receiver and transmitter projects at VH3HN, each using the Arduino Nano/si5351 combination.  All these projects share this common script.  By using a common script, a bug fixed or parameter changed is done once, in one place only, and gets deployed the next time a particuar transceiver's Arduino is flashed.  
+This script has been used for a number of homebrew transceiver, receiver and transmitter projects at VH3HN, each using the Arduino Nano/si5351 combination.  All these projects share this common script.  By using a common script, a bug fixed or parameter changed is done once, in one place only, and gets deployed the next time a particuar transceiver's Arduino is flashed.  
 
 'SP_' stands for Summit Prowler.  Summit Prowlers are scratch-built QRP tranceivers I have been building for SOTA activations since 2017.  The fourth, fifth and sixth rigs in this series are all multiband SSB/CW single conversion (high-side VFO) superhets.  SP_VFO_Controller.ino is the VFO/controller script for all of these rigs, and other projects as well.    
 
@@ -11,7 +11,7 @@ For discussion of this project and some information to help you decide if this i
 
 Please feel free to raise an issue, defect or feature request on Github.  Please let me know if you use this code, with or without change. 
 
- -- Paul Taylor, VK3HN.  1 Apr 2019.
+ -- Paul Taylor, VK3HN.  25 July 2019.
 
 Feature summary:
 * Uses si5351 clock 0 for VFO 
