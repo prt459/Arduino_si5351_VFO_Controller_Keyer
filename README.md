@@ -12,6 +12,7 @@ For discussion of this project and some information to help you decide if this i
 Please feel free to raise an issue, defect or feature request on Github.  Please let me know if you use this code, with or without change. 
 
  -- Paul Taylor, VK3HN.  25 July 2019.
+ -- updated 13/11/2019.
 
 Feature summary:
 * Uses si5351 clock 0 for VFO 
@@ -35,6 +36,7 @@ Notes:
 * Uses the following libraries: etherkit/si5351Arduino, Wire (Arduino), EEPROM (Arduino), PCF8574 (Arduino), Rotary (Arduino) 
 *  - for LCD: LiquidCrystal (Arduino)
 *  - for OLED: greiman/SSD1306Ascii
+*  - for Real Time Clock: Arduino RTClib.h
 * VK3HN's 'Summit Prowler' homebrew rigs using this script: 
 *  https://vk3hn.wordpress.com/2018/02/16/summit-prowler-iv-a-six-band-scratch-built-80m-to-17m-5w-ssb-cw-transceiver-for-portable-and-sota-use/ 
 *  https://vk3hn.wordpress.com/2018/10/25/a-scratchbuilt-g6lbq-bitx-walkie-talkie-for-40-and-20m-ssb-cw/ 
