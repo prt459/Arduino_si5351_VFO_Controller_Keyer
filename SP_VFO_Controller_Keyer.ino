@@ -63,6 +63,7 @@ Labels that need to be #define'd for your target radio/rig/project:
 
 #ifdef SP_IV                       // 6-band MST SSB/CW transceiver
 #define ENCODER_OPTICAL_360 
+#define BFO_ENABLED
 #define BFO_TUNE_LO   11990000ULL  // lowest BFO frequency
 #define BFO_TUNE_HI   12005000ULL  // highest BFO frequency
 volatile uint32_t USB = 11998500ULL;  // the reference BFO freq for LSB, may be tuned, put in EEPROM once
