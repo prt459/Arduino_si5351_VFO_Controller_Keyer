@@ -42,3 +42,15 @@ Notes:
 *  https://vk3hn.wordpress.com/2018/10/25/a-scratchbuilt-g6lbq-bitx-walkie-talkie-for-40-and-20m-ssb-cw/ 
 *  https://vk3hn.wordpress.com/2019/05/01/summit-prowler-6-a-pocket-sized-ssb-cw-transceiver-for-80-40-30-and-20m/ 
 * Custom S-meter font: https://github.com/prt459/Arduino_si5351_VFO_Controller_Keyer/blob/master/s_meter_font.h
+
+Libraries:
+The script uses commonly available libraries; here are the ones I used. Substitutes should work, but code changes may be necessary:
+* Rotary - Ben Buxton's rotary library  http://www.buxtronix.net/2011/10/rotary-encoders-done-properly.html
+           This is an old library, others should work
+* PCF8574 - Rob Tillaart, 02-feb-2013, V0.1.02 - latest at https://github.com/RobTillaart/Arduino/tree/master/libraries/PCF8574
+* SSD1306Ascii - William Greiman (2015) https://github.com/greiman/SSD1306Ascii 
+* si5351 - the etherkit library from Jason Millstrom NT7S https://github.com/etherkit/Si5351Arduino  
+* Wire - comes with Arduino IDE
+* EEPROM - comes with Arduino IDE
+* LiquidCrystal - comes with Arduino IDE
+* RTClib - used in one of my transceivers, library for a Real Time Clock breakout to get an on-screen clock
