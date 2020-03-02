@@ -12,6 +12,7 @@ V1.4, 27 Nov 2018 - revised version with CW keyer for homebrew SP_IV transceiver
 V1.5, 3 Dec 2018  - Refactored #define's and code blocks for project labels
 V1.6  6 Jun 2019  - Added MCP9808 temp sensor (Adafruit)
 V1.7  2 Mar 2020  - Added code for AM transmitters that use one clock only as transmitter VFO at signal frequency 
+V1.8  2 Mar 2020  - Code for VFO BFO reversing.
 
 Labels that need to be #define'd for your target radio/rig/project:
   Rotary encoder         {ENCODER_OPTICAL_360, ENCODER_MECHANICAL} 
