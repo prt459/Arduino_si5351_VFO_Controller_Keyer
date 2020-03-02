@@ -10,20 +10,19 @@ Targets Ashar Farhan VU2ESE's Arduino Nano/si5351 module (Raduino).
 V1.0, 20 Jun 2017 - first version for homebrew Arduino/si5351 VFO
 V1.4, 27 Nov 2018 - revised version with CW keyer for homebrew SP_IV transceiver
 V1.5, 3 Dec 2018  - Refactored #define's and code blocks for project labels
-V1.6, 31 Mar 2019 - various minor updates arising from latest rig project
+V1.6  6 Jun 2019  - Added MCP9808 temp sensor (Adafruit)
 
 Labels that need to be #define'd for your target radio/rig/project:
   Rotary encoder         {ENCODER_OPTICAL_360, ENCODER_MECHANICAL} 
   Display technology     {DISPLAY_LCD, DISPLAY_OLED}
   Display type           {LCD_20X4, LCD_16X2, LCD_8X2, OLED_128X64}
-  Project name           {SP_IV, SS_160_80_40_AM_TX, SS_EMRFD_RX, SP_V, SS_EI9GQ, SP_VI }
+  Project name           {SP_IV, SS_160_80_40_AM_TX, SS_EMRFD_RX, SP_V, SS_EI9GQ, SP_VI, SP_VII }
   BFO enable             {BFO_ENABLED}
   VSWR meter             {VSWR_METER}
   CW keyer               {CW_KEYER} 
   Tune mS                {TUNE_MS}            Typical value: 3000mS
   Held button mS         {BUTTON_HELD_MS}     Typical value: 700mS
   Diagnostics on display {DIAGNOSTIC_DISPLAY} 
-
 */
 
 // common libraries
@@ -36,11 +35,15 @@ Labels that need to be #define'd for your target radio/rig/project:
 // #define one (and only one) label to pull in the right code for the specific project
 
 //#define SP_IV         // for code specific to Summit Prowler IV (6 band MST) (16x2 LCD, optical encoder)
-// #define SS_160_80_40_AM_TX // for code specific to the VK3XU 160, 80 and 40m AM/CW transmitter/receiver (16x2 LCD, optical encoder)
 // #define SS_EMRFD_RX  // for code specific to Shack Sloth II receiver (EMRFD design) (16x2 LCD, optical encoder)
 // #define SP_V         // for code specific to Summit Prowler V rig (2 band G6LBQ BiTx) (8x2 LCD, mechanical encoder)
 // #define SS_EI9GQ     // for code specific to Shack Sloth base station transceiver by Eamon EI9GQ) (20x4 LCD, mechanical encoder)
-#define SP_VI         // for code specific to DK7IH Compact Monobander (128x64 OLED with SSD1308, mechanical encoder)
+// #define SP_VI         // for code specific to DK7IH Compact Multibander (128x64 OLED with SSD1308, mechanical encoder)
+// #define SP_VII         // for code specific to VK3WAC SSDRA Monobander (LCD, optical encoder)
+// #define SS_FAT5_160AM_TX // for code specific to the GW8LLJ (FAT5) 160 AM/CW transmitter/receiver (16x2 LCD, optical encoder)
+// #define SS_VK3SJ_160AM_TX // for code specific to the Laurie VK3SJ's PWM AM transmitter (16x2 LCD, optical encoder)
+// #define SS_AM_TX_TEST_VFO // for code specific to a bench VFO for testing AM transmitters (11/2019)
+#define SS_VK3SJ_40AM_TX // for code specific to the VK3SJ 40m AM transmitter (16x2 LCD, optical encoder)
 
 
 // common #define's that precede other declarations
@@ -57,6 +60,8 @@ Labels that need to be #define'd for your target radio/rig/project:
 #define FAN_DROPOUT_DELAY  5000  // period of inactivity before the fan drops out to save battery (mS)
 #define VFO_DRIVE_THRESHOLD 18000  // threshold freq above which a higher si5351 clock output level on the VFO clock is used
 #define CO_DRIVE_THRESHOLD  18000  // threshold freq above which a higher si5351 clock output level on the carrier oscillator (CW) clock is used
+
+
 
 
 // specific declarations and #define's for each project
@@ -154,13 +159,98 @@ volatile uint32_t LSB = 11996000ULL;  // the reference BFO freq for USB, may be 
 #define NBR_VFOS    10 // number of selectable VFOs 
 #define CW_KEYER       // include the CW keyer code
 // #define DIAGNOSTIC_DISPLAY  // allow use of the OLED for tracing simple values (eg button values)
-
 #define TX_SSB_MUTE_LINE 9    // D9 is used to mute the mic amp to silence a T/R squeal in SP_VI 
                               // normally high, this line goes low TX_SSB_MUTE_DELAY mS after PTT when transmitting SSB
 #define TX_SSB_MUTE_DELAY 350 // delay (mS) before the mic amp is unmuted after SSB PTT 
-
 #define CO_SUPPLY  8          // this pin controls a high side DC switch to enable the carrier oscillator when keyed
+#endif
 
+
+#ifdef SP_VII                        // VK3WAC SSDRA Mono-band SSB/CW transceiver
+#define ENCODER_OPTICAL_360 
+#define BFO_ENABLED
+#define BFO_TUNE_LO     5100000ULL  // lowest BFO frequency
+#define BFO_TUNE_HI     5130000ULL  // highest BFO frequency
+volatile uint32_t USB =  5120000ULL;  // the reference BFO freq for USB, may be tuned, put in EEPROM once
+//volatile uint32_t LSB =  5121500ULL;  // the reference BFO freq for LSB, may be tuned, put in EEPROM once 
+volatile uint32_t LSB =  5116000ULL;  // the reference BFO freq for LSB, may be tuned, put in EEPROM once 
+#define DISPLAY_LCD
+#define LCD_16X2
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7); 
+#define NBR_VFOS    4  // number of selectable VFOs 
+#define CW_KEYER       // include the CW keyer code
+// #define DIAGNOSTIC_DISPLAY  // allow use of the OLED for tracing simple values (eg button values)
+//#define TX_SSB_MUTE_LINE 9    // D9 is used to mute the mic amp to silence a T/R squeal in SP_VI 
+                              // normally high, this line goes low TX_SSB_MUTE_DELAY mS after PTT when transmitting SSB
+//#define TX_SSB_MUTE_DELAY 350 // delay (mS) before the mic amp is unmuted after SSB PTT 
+#define CO_SUPPLY  7          // this pin controls a high side DC switch to enable the carrier oscillator when keyed
+#endif
+
+
+#ifdef SS_FAT5_160AM_TX          // GW8LJJ FAT5 160m 100W Class E AM transmitter
+#define ENCODER_OPTICAL_360 
+#define BFO_TUNE_LO   11990000ULL  // lowest BFO frequency (not currently used)
+#define BFO_TUNE_HI   12005000ULL  // highest BFO frequency (not currently used)
+volatile uint32_t USB =  0ULL;     // BFO not used in this Tx
+volatile uint32_t LSB =  0ULL;
+#define DISPLAY_LCD
+#define LCD_16X2
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7); 
+#define NBR_VFOS    4 // number of selectable VFOs 
+#define CW_KEYER       // include the CW keyer code
+#define PWM_ENABLE_LINE 6 // normally low, take high to enable PWM (used in T/R sequencing) 
+#endif
+
+
+#ifdef SS_VK3SJ_160AM_TX          // VK3SJ Laurie's 160m Class D AM PWM transmitter
+#define ENCODER_OPTICAL_360 
+#define BFO_TUNE_LO   11990000ULL  // lowest BFO frequency (not used)
+#define BFO_TUNE_HI   12005000ULL  // highest BFO frequency (not used)
+volatile uint32_t USB =  0ULL;     // BFO not used 
+volatile uint32_t LSB =  0ULL;
+#define DISPLAY_LCD
+#define LCD_16X2
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7); 
+#define NBR_VFOS    3 // number of selectable VFOs 
+#define CW_KEYER       // include the CW keyer code
+#define PWM_ENABLE_LINE 6 // normally low, take high to enable PWM (used in T/R sequencing) 
+#include <Adafruit_MCP9808.h>
+Adafruit_MCP9808 tempsensor = Adafruit_MCP9808();  // I2C address defaults to ...
+byte loop_cntr=0;
+#endif
+
+
+#ifdef SS_VK3SJ_40AM_TX          // VK3SJ Laurie's 40m Class D AM PWM transmitter
+#define ENCODER_OPTICAL_360 
+#define BFO_TUNE_LO   11990000ULL  // lowest BFO frequency (not used)
+#define BFO_TUNE_HI   12005000ULL  // highest BFO frequency (not used)
+volatile uint32_t USB =  0ULL;     // BFO not used 
+volatile uint32_t LSB =  0ULL;
+#define DISPLAY_LCD
+#define LCD_16X2
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7); 
+#define NBR_VFOS    2 // number of selectable VFOs 
+#define CW_KEYER       // include the CW keyer code
+#define PWM_ENABLE_LINE 6 // normally low, take high to enable PWM (used in T/R sequencing) 
+byte loop_cntr=0;
+#endif
+
+#ifdef SS_AM_TX_TEST_VFO          // Test/bench VFO for Class D/E AM transmitters
+#define ENCODER_MECHANICAL 
+#define BFO_TUNE_LO     455000ULL  // lowest BFO frequency (not currently used)
+#define BFO_TUNE_HI     455000ULL  // highest BFO frequency (not currently used)
+volatile uint32_t USB = 455000ULL;  // the reference BFO freq for LSB, may be tuned
+volatile uint32_t LSB = 455000ULL;  // the reference BFO freq for USB, may be tuned
+#define DISPLAY_LCD
+#define LCD_16X2
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7); 
+#define NBR_VFOS    8  // number of selectable VFOs 
+#define CW_KEYER       // include the CW keyer code
 #endif
 
 
@@ -202,26 +292,33 @@ int pwr_val = 0;             // stores the last reading of the RF power sensing 
 #endif
 
 // frequency ranges for automatic band pass and low pass filter switching
-#define FILTER_160_LB  1800000ULL  // Filter set lower bound (MHz)
-#define FILTER_160_UB  2000000ULL  // Filter set upper bound (MHz)
 
-#define FILTER_80_LB  3500000ULL  // Filter set lower bound (MHz)
-#define FILTER_80_UB  3900000ULL  // Filter set upper bound (MHz)
+#define FILTER_630_LB  200000ULL  // Filter set lower bound (MHz)
+#define FILTER_630_UB  500000ULL  // Filter set upper bound (MHz)
 
-#define FILTER_60_LB  5300000ULL  // Filter set lower bound (MHz)
-#define FILTER_60_UB  5600000ULL  // Filter set upper bound (MHz)
+#define FILTER_MW_LB   500100ULL  // Filter set lower bound (MHz)
+#define FILTER_MW_UB  1750000ULL  // Filter set upper bound (MHz)
 
-#define FILTER_40_LB  7000000ULL  // Filter set lower bound (MHz)
-#define FILTER_40_UB  7300000ULL  // Filter set upper bound (MHz)
+#define FILTER_160_LB 1750100ULL  // Filter set lower bound (MHz)
+#define FILTER_160_UB 2500000ULL  // Filter set upper bound (MHz)
 
-#define FILTER_30_LB 10100000ULL  // Filter set lower bound (MHz)
-#define FILTER_30_UB 10150000ULL  // Filter set upper bound (MHz)
+#define FILTER_80_LB  2501000ULL  // Filter set lower bound (MHz)
+#define FILTER_80_UB  4000000ULL  // Filter set upper bound (MHz)
 
-#define FILTER_20_LB 14000000ULL  // Filter set lower bound (MHz)
-#define FILTER_20_UB 14350000ULL  // Filter set upper bound (MHz)
+#define FILTER_60_LB  4001000ULL  // Filter set lower bound (MHz)
+#define FILTER_60_UB  6500000ULL  // Filter set upper bound (MHz)
 
-#define FILTER_17_LB 18068000ULL  // Filter set lower bound (MHz)
-#define FILTER_17_UB 18168000ULL  // Filter set upper bound (MHz)
+#define FILTER_40_LB  6501000ULL  // Filter set lower bound (MHz)
+#define FILTER_40_UB  8000000ULL  // Filter set upper bound (MHz)
+
+#define FILTER_30_LB  8001000ULL  // Filter set lower bound (MHz)
+#define FILTER_30_UB 12000000ULL  // Filter set upper bound (MHz)
+
+#define FILTER_20_LB 12001000ULL  // Filter set lower bound (MHz)
+#define FILTER_20_UB 16000000ULL  // Filter set upper bound (MHz)
+
+#define FILTER_17_LB 16001000ULL  // Filter set lower bound (MHz)
+#define FILTER_17_UB 18500000ULL  // Filter set upper bound (MHz)
 
 // i2c devices and addresses:
 // si5351  x60
@@ -273,7 +370,13 @@ byte  dot_length_ms = 60;  // make the CW slower, for pushbutton CW
 #ifdef SP_VI
 byte  dot_length_ms = 55;  // 
 #endif
+#ifdef SP_VII
+byte  dot_length_ms = 55;  // 
+#endif
 #ifdef SS_EI9GQ
+byte  dot_length_ms = 55;  
+#endif
+#if defined(SS_FAT5_160AM_TX) || defined(SS_VK3SJ_160AM_TX)  || defined(SS_AM_TX_TEST_VFO) || defined(SS_VK3SJ_40AM_TX)
 byte  dot_length_ms = 55;  
 #endif
                          
@@ -350,6 +453,15 @@ String morse_msg[] = {"CQ SOTA VK3HN/P K", "DE VK3HN" };
 //String morse_msg[] = {"1", "2" };  // for testing
 #endif
 
+#ifdef SP_VII
+String morse_msg[] = {"CQ SOTA VK3HN/P K", "CQ CQ VK3HN K" };
+//String morse_msg[] = {"1", "2" };  // for testing
+#endif
+
+#if defined(SS_FAT5_160AM_TX) || defined(SS_VK3SJ_160AM_TX) || defined(SS_AM_TX_TEST_VFO) || defined (SS_VK3SJ_40AM_TX)
+String morse_msg[] = {"CQ CQ DE VK3HN VK3HN K", "DE VK3HN" };
+#endif
+
 byte   curr_msg_nbr;   // index into morse_msg[] array
 byte   cw_msg_index;   // index into morse_msg[cw_msg_index] array
 #endif
@@ -402,40 +514,18 @@ int s_meter_update_cnt = 0;
 
 bool func_button_pressed = false; // if true, the next button pressed is interpreted as a Function 
 bool BFO_tune_flg = false;       // BFO Tune feature
-byte dial_tick=0, dial_speed=8;  // control rotary encoder /dial speed
+byte dial_tick=0;
+
+#ifdef SP_VII
+byte dial_speed=6;  // slightly different value for this particular rig and encoder 
+#else 
+byte dial_speed=8;  // control rotary encoder /dial speed
+#endif
 
 // variables for controlling EEPROM writes
 unsigned long last_freq_change_ms;
 bool eeprom_written_since_last_freq_change; 
 bool changed_f = false;
-
-
-
-//******************************************
-// diagnostic code 
-/*
-void PCF8574_test()
-{
-  
-  Serial.println();  
-  Serial.println("Test PCF_LPF...");   
-  
-  for (byte i=0; i<4; i++) {    
-    Serial.print("toggle pin ");  Serial.println(i);  
-    PCF_LPF.write(i, 1);
-    Serial.print("err:");   Serial.println(PCF_LPF.lastError());
-    delay(1000); 
-
-    PCF_LPF.write(i, 0);  
-    Serial.print("err:");   Serial.println(PCF_LPF.lastError());
-    delay(200);
-  }
-}
-
-
-//******************************************
-*/
-
 
 
 /**************************************/
@@ -503,7 +593,7 @@ int read_analogue_pin(byte p)
   return val/nbr_reads; 
 };
 
-
+#ifdef CW_KEYER
 int read_keyer_speed()
 { 
   int n = read_analogue_pin((byte)PIN_KEYER_SPEED);
@@ -515,6 +605,7 @@ int read_keyer_speed()
                                      // smaller number -> greater range  
   return n;
 };
+#endif
 
 
 byte get_front_panel_button()
@@ -561,6 +652,7 @@ byte get_front_panel_button()
   else if(z > 400   && z < 480)   b = 4;  // 444 
 #endif
 
+//----------------------------------------------------------------------------------
 #ifdef SP_VI
                                       // open (USB power: 850) (LiFePO+7812: 1023)  
   if(z > 300 && z < 800) b = 4;       // B1   (USB power: 436) (LiFePO+7812: 719)  
@@ -578,6 +670,41 @@ byte get_front_panel_button()
   refresh_display();
 #endif                                       
 #endif
+//----------------------------------------------------------------------------------
+
+#ifdef SP_VII
+                                      // open (USB power: xxx) (LiFePO+7812: xxx)  
+  if(z > 300 && z < 800) b = 4;       // B1   (USB power: xxx) (LiFePO+7812: xxx)  
+  else if(z > 50 && z <= 300) b = 1;  // B2   (USB power:  xxx) (LiFePO+7812: xxx)  
+                                      // both:(USB power:  xxx) (LiFePO+7812: xxx)  
+#endif                                       
+
+#ifdef SS_FAT5_160AM_TX
+// ### Tune this!
+  if(z > 900) b = 0;                  // 1008-1017
+  else if(z > 77 && z < 899)   b = 1;    // 90
+  else if(z > 55 && z < 76)   b = 4;    // 66 
+  else if(z > 30  && z < 55)  b = 5;  // 41 
+  else if(z > 5   && z < 30)  b = 6;  // 14 
+#endif  
+
+#ifdef SS_VK3SJ_160AM_TX
+  if (z < 250) b = 1;       // 120 
+  else if(z > 900) b = 2;  // 1023
+#endif  
+
+#ifdef SS_VK3SJ_40AM_TX
+  if ((z> 50) && (z < 100)) b = 1;       // 120 
+  else if((z > 25) && (z < 49)) b = 4;  // 1023
+  else if((z > 5) && (z < 24)) b = 6;  // 1023
+#endif  
+
+#ifdef SS_AM_TX_TEST_VFO
+// ### Tune this!
+  if(z > 800) b = 0;                   // 850
+  else if(z > 50 && z < 200)   b = 4;  // 105
+  else if(z > 250 && z < 800)  b = 1;  // 438 
+#endif  
 
 //  if(b>0){ Serial.print("Front button="); Serial.print(b); Serial.print("   z="); Serial.println(z);}
   return b;  
@@ -638,6 +765,17 @@ void read_meter()
 //  }
   return;
 }
+
+
+
+#ifdef DISPLAY_LCD
+void LCD_diagnostic(char c)
+{
+  lcd.setCursor(10, 1);
+  lcd.print(c);
+}
+#endif
+
 
 
 void refresh_display()
@@ -932,6 +1070,7 @@ void refresh_LCD() {
 #ifndef LCD_8X2
   cursor_pos = 14;
 #endif
+
   switch (VFOSet[v].radix)
   {
     case 10:
@@ -949,7 +1088,18 @@ void refresh_LCD() {
     case 10000:
       lcd.setCursor(cursor_pos-4, 0);
     break;
-  }
+  };
+
+
+#ifdef SS_VK3SJ_160AM_TX
+  // read temp on the heatsink
+  float c = tempsensor.readTempC();
+  String s(c);
+  String C_str = s.substring(0, s.indexOf('.')+2) + "C";
+//  Serial.print("C_str: "); Serial.println(C_str);
+  lcd.setCursor(11, 1);
+  lcd.print(C_str);
+#endif
 
 #endif // #ifdef DISPLAY_LCD
 }
@@ -962,6 +1112,19 @@ void set_filters(uint32_t f)
     byte BPF_line=0;  
     bool band_changed = false;
 
+#ifdef SS_AM_TX_TEST_VFO
+// set the BPF line for this 8 band receiver
+
+    if ((f >= FILTER_630_LB) && (f <= FILTER_630_UB)) BPF_line = 1;
+    if ((f >= FILTER_MW_LB) && (f <= FILTER_MW_UB)  ) BPF_line = 2;
+    if ((f >= FILTER_160_LB) && (f <= FILTER_160_UB)) BPF_line = 3;
+    if ((f >= FILTER_80_LB) && (f <= FILTER_80_UB)  ) BPF_line = 4;
+    if ((f >= FILTER_60_LB) && (f <= FILTER_60_UB)  ) BPF_line = 5;
+    if ((f >= FILTER_40_LB) && (f <= FILTER_40_UB)  ) BPF_line = 6;
+    if ((f >= FILTER_30_LB) && (f <= FILTER_30_UB)  ) BPF_line = 7;
+    if ((f >= FILTER_20_LB) && (f <= FILTER_20_UB)  ) BPF_line = 8;
+// end SS_AM_TX_TEST_VFO
+#else
     if ((f >= FILTER_160_LB) && (f <= FILTER_160_UB)) 
     {
       BPF_line = 1;
@@ -1000,7 +1163,8 @@ void set_filters(uint32_t f)
       BPF_line = 6;
       LPF_line = 5;
     };
-
+#endif
+//-----------------------------
 //   Serial.print("BPF_line, LPF_line="); Serial.print(BPF_line);Serial.print(","); Serial.println(LPF_line); 
 
   // handle the BPFs, if the band has changed
@@ -1119,8 +1283,7 @@ void receive_to_TRANSMIT()
   };
   
   digitalWrite(TRANSMIT_LINE, 1); // pull in the T/R relay
-  delay(5); 
-  // digitalWrite(6, 1); // test
+  delay(10); 
   //  changed_f = true;  // make sure the display refreshes
 
   if(mode_cw)
@@ -1145,20 +1308,33 @@ void receive_to_TRANSMIT()
     
     si5351.set_freq(f * SI5351_FREQ_MULT, SI5351_CLK1);
     if(f < CO_DRIVE_THRESHOLD)
-      si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_2MA); 
+      si5351.drive_strength(SI5351_CLK1, SI5351_DRIVE_2MA); 
     else
-      si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_6MA); 
+      si5351.drive_strength(SI5351_CLK1, SI5351_DRIVE_6MA); 
     
-    si5351.drive_strength(SI5351_CLK1, SI5351_DRIVE_2MA); 
     si5351.output_enable(SI5351_CLK1, 0); // turn the CW clock off until keyed
     dot_dash_sent = 0;  // count nbr chars sent this transmit period
 
 #ifdef SP_VI
     digitalWrite(CO_SUPPLY, 1);  // powers up the carrier oscillator buffer 
-#endif    
+#endif   
+#ifdef SP_VII
+    digitalWrite(A7, 1);  // powers up the carrier oscillator buffer 
+#endif   
+ 
   }
   else
   {
+    // mode is NOT CW ...
+
+#if defined(SS_FAT5_160AM_TX) || defined(SS_VK3SJ_160AM_TX) || defined(SS_AM_TX_TEST_VFO) || defined(SS_VK3SJ_40AM_TX)
+    si5351.set_freq(VFOSet[v].vfo * SI5351_FREQ_MULT, SI5351_CLK0); // turn on the drive (VFO on signal frequency, CLK0)
+    si5351.output_enable(SI5351_CLK0, 1); 
+
+    delay(20);
+    digitalWrite(PWM_ENABLE_LINE, 1);     // enable the PWM    
+#endif
+    
 #ifdef SP_VI
     // mode is SSB, so un-mute the mic amp
     delay(TX_SSB_MUTE_DELAY);
@@ -1172,19 +1348,29 @@ void TRANSMIT_to_receive()
 {
   mode_tx = false;
   Serial.println("TRANSMIT_to_receive()");
+
+#if defined(SS_FAT5_160AM_TX) || defined(SS_VK3SJ_160AM_TX) || defined(SS_AM_TX_TEST_VFO) || defined (SS_VK3SJ_40AM_TX)
+    digitalWrite(PWM_ENABLE_LINE, 0);     // disable the PWM
+    delay(20); 
+    si5351.output_enable(SI5351_CLK0, 0); // disable the clock (transmit VFO)
+#endif
+  
   digitalWrite(TRANSMIT_LINE, 0); // drop out the T/R relay
-  delay(5);
+  delay(10);
   digitalWrite(MUTE_LINE, 0);     // un-mute the receiver
-  // digitalWrite(6, 0); // test
 
   if(mode_cw)
   {
-//     Serial.println("  mode_cw==true");
+    // Serial.println("  mode_cw==true");
+#if defined(SS_FAT5_160AM_TX) || defined(SS_VK3SJ_160AM_TX) || defined (SS_VK3SJ_40AM_TX)
+    // nothing
+#else
     si5351.output_enable(SI5351_CLK0, 1);  //  turn the VFO back on again 
     if(VFOSet[v].vfo < VFO_DRIVE_THRESHOLD)
       si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_2MA); 
     else
       si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA); 
+#endif
       
 #ifdef BFO_ENABLED
     si5351.output_enable(SI5351_CLK2, 1);  //  turn the BFO back on again 
@@ -1193,15 +1379,19 @@ void TRANSMIT_to_receive()
 #ifdef SP_VI
     digitalWrite(CO_SUPPLY, 0);  // power down the carrier oscillator buffer 
 #endif
+#ifdef SP_VII
+    digitalWrite(A7, 0);  // power down the carrier oscillator buffer 
+#endif
   }
   else
   {
-    // mode is SSB
+    // mode is SSB (or AM)  
 #ifdef SP_VI
     // mode is SSB, so mute the mic amp
     digitalWrite(TX_SSB_MUTE_LINE, 0); // mute the mic amp (to silence a T/R squeal in SP_VI) 
 #endif
   };
+  
   mode_cw = false;  // mode will be set next time the paddle or keyer is touched
   last_T_R_ms = millis();  // start the LPF drop out timer from now
   pwr_val = 0;  // flush out residual RF power reading
@@ -1265,16 +1455,27 @@ byte check_keyer_pushbutton()
   else if(z > 130 && z < 200) b = 2;   // 164
   else if(z >= 200 && z < 250) b = 3;  // 228
 #endif
+
 #ifdef SP_V
   if(z >= 140 && z < 200) b = 1;       // 171
   else if(z > 280 && z < 350) b = 2;   // 317
   else if(z >= 550 && z < 650) b = 3;  // 601
 #endif
+
 #ifdef SP_VI
                                       // open (USB power: 840) (LiFePO+7812: 1023)  
   if(z > 300 && z < 990) b = 1;       // L    (USB power: 418) (LiFePO+7812: 712)  
   else if(z > 10 && z <= 300) b = 2;  // R    (USB power:  74) (LiFePO+7812: 122)  
                                       // both:(USB power:  66) (LiFePO+7812: 112)  
+#endif
+
+#ifdef SP_VII
+                                      // open (USB power: xxx) (LiFePO+7812: xxx)  
+//  if(z > 300 && z < 990) b = 1;       // L    (USB power: xxx) (LiFePO+7812: xxx)  
+//  else if(z > 10 && z <= 300) b = 2;  // R    (USB power:  xxx) (LiFePO+7812: xxx)  
+                                      // both:(USB power:  xxx) (LiFePO+7812: xxx)  
+
+  b=0; 
 #endif
 
   if(b>0){
@@ -1304,6 +1505,7 @@ byte check_paddle()
   if(z > 130 && z < 199) b = 2;      // L 165
   else if(z > 70 && z < 99) b = 1;   // R 89 
 #endif
+
 #ifdef SP_V
   if(z > 650 && z < 750) b = 2;      // L 681
   else if(z > 450 && z < 550) b = 1; // R 510 
@@ -1313,6 +1515,12 @@ byte check_paddle()
 // SP-IV uses D11 and D12 for the paddle
   if(!digitalRead(11)) b=2;
   if(!digitalRead(12)) b=1;
+#endif
+
+#ifdef SP_VII
+  if(z > 650 && z < 750) b = 2;      // L xxx
+  else if(z > 450 && z < 550) b = 1; // R 5xxx10 
+                                     // both: xxx for future reference
 #endif
 
 //  if(b>0){
@@ -1577,7 +1785,100 @@ void setup()
 
   pinMode(TX_SSB_MUTE_LINE, OUTPUT); // this rig uses D9 to mute the mic amp, goes low after SSB PTT
   digitalWrite(TX_SSB_MUTE_LINE, 0);  // mute the mic until ready to transmit SSB 
+#endif
 
+#ifdef SP_VII
+  Serial.println("SP_VII SSD");
+  lcd.begin(16, 2);   
+  lcd.cursor();
+  lcd.noBlink();   
+  lcd.print("SP Gnrc Bld 1.40");
+  delay(1000); 
+  lcd.setCursor(0,1);
+  lcd.print("VK3HN 7/08/2019");
+  delay(1000); 
+  lcd.clear();
+#endif
+
+#ifdef SS_FAT5_160AM_TX
+  Serial.println("SS_FAT5_160AM_TX");
+  lcd.begin(16, 2);      
+  lcd.cursor();
+  lcd.noBlink();   
+  lcd.print("SP Gnrc Bld 1.40");
+  lcd.setCursor(0,1);
+  lcd.print("SS_FAT5_160AM_TX");
+  delay(1500); 
+  lcd.setCursor(0,1);
+  lcd.print("VK3HN 11/04/2019");
+  delay(1000);  
+  lcd.clear();
+
+  pinMode(PWM_ENABLE_LINE, OUTPUT);
+  digitalWrite(PWM_ENABLE_LINE, 0);     // disable the PWM (active low)   
+#endif
+
+#ifdef SS_VK3SJ_160AM_TX
+  Serial.println("SS_VK3SJ_160AM_TX");
+  lcd.begin(16, 2);      
+  lcd.cursor();
+  lcd.noBlink();   
+  lcd.print("SP Gnrc Bld 1.41");
+  lcd.setCursor(0,1);
+  lcd.print("SS_VK3SJ_160AM_TX");
+  delay(1500); 
+  lcd.setCursor(0,1);
+  lcd.print("VK3HN 01/01/2020");
+  delay(1000);  
+  lcd.clear();    
+
+  byte c=0;
+  while ((!tempsensor.begin()) && c<10) {
+    Serial.println("MCP9808 err");
+    lcd.print("MCP9808 err");
+    delay(100);
+    c++;
+  };
+
+  pinMode(PWM_ENABLE_LINE, OUTPUT);
+  digitalWrite(PWM_ENABLE_LINE, 0);     // disable the PWM (active low)   
+#endif
+
+
+#ifdef SS_VK3SJ_40AM_TX
+  Serial.println("SS_VK3SJ_40AM_TX");
+  lcd.begin(16, 2);      
+  lcd.cursor();
+  lcd.noBlink();   
+  lcd.print("SP Gnrc Bld 1.41");
+  lcd.setCursor(0,1);
+  lcd.print("SS_VK3SJ_40AM_TX");
+  delay(1500); 
+  lcd.setCursor(0,1);
+  lcd.print("VK3HN 26/02/2020");
+  delay(1000);  
+  lcd.clear();
+  pinMode(PWM_ENABLE_LINE, OUTPUT);
+  digitalWrite(PWM_ENABLE_LINE, 0);     // disable the PWM (active low)   
+#endif
+
+
+#ifdef SS_AM_TX_TEST_VFO
+  Serial.println("SS_AM_TX_TEST_VFO");
+  lcd.begin(16, 2);      
+  lcd.cursor();
+  lcd.noBlink();   
+  lcd.print("SP Gnrc Bld 1.40");
+  lcd.setCursor(0,1);
+  lcd.print("SS_AM_TX_TEST_VFO");
+  delay(1500); 
+  lcd.setCursor(0,1);
+  lcd.print("VK3HN 17/11/2019");
+  delay(1000);  
+  lcd.clear();
+
+  pinMode(PWM_ENABLE_LINE, OUTPUT);
+  digitalWrite(PWM_ENABLE_LINE, 0);     // disable the PWM (active low)   
 #endif
 
 // reset the Band/Low Pass Filter controllers
@@ -1586,22 +1887,16 @@ void setup()
     PCF_BPF.write(i, 0); //turn all the BPF relays off 
     PCF_LPF.write(i, 0); //turn all the LPF relays off 
 //    Serial.print(" 0: ");   Serial.println(PCF_LPF.lastError());
-
   }
-
-// ****** diagnostic -- remove ****************
-// test the PCF8574
-//  for(byte n=0; n<2; n++){ PCF8574_test(); }
-// ****** diagnostic -- remove ****************
-
 
 // set digital and analogue pins
   pinMode(SWITCH_BANK, INPUT_PULLUP); // switch bank is Pull-up
   pinMode(PTT_SENSE, INPUT_PULLUP);  // senses the PTT switch in the microphone, normally open, grounded when PTT pressed
+  
+  pinMode(MUTE_LINE, OUTPUT); 
   digitalWrite(MUTE_LINE, 0);     // put the mute line low (un-mute)  
+  pinMode(TRANSMIT_LINE, OUTPUT); 
   digitalWrite(TRANSMIT_LINE, 0); // put the transmit line low (relay not energised)
-
-//  digitalWrite(6, 0); // *** may be a leftover!
 
 // start with transmit line low (in receive) 
   mode_tx = false;
@@ -1648,29 +1943,69 @@ void setup()
     Serial.println();
   }
   
-  // initialise and start the si5351 clocks
-  // si5351.set_correction(140); // use File/Examples/si5351Arduino-Jason
+// initialise and start the si5351 clocks
 
-  
   si5351.init(SI5351_CRYSTAL_LOAD_8PF, 0, 0); //If using 27Mhz xtal, put 27000000 instead of 0
                                               // 0 is the default xtal freq of 25Mhz
 #ifdef SP_VI
   si5351.set_correction(19100);      // to determine the correction using the serial monitor
-#endif    
+#endif  
+
+#ifdef SP_VII
+  si5351.set_correction(19100);      // to determine the correction using the serial monitor
+#endif  
+
+#ifdef SS_FAT5_160AM_TX
+ si5351.set_correction(160000);    // for FAT5  
+#endif  
+
+#ifdef SS_VK3SJ_160AM_TX 
+  si5351.set_correction(5000);     // tune this
+#endif 
+
+#ifdef SS_VK3SJ_40AM_TX 
+  si5351.set_correction(5000);     // tune this
+#endif 
+
+#ifdef SS_AM_TX_TEST_VFO 
+  si5351.set_correction(18800);    // tuned 3/11/2019 
+#endif   
                                         
   si5351.set_pll(SI5351_PLL_FIXED, SI5351_PLLA);
   
   // choose a high or low BFO frequency
-  if(VFOSet[v].vfo >= SIDEBAND_THRESHOLD) bfo = USB;
-  else bfo = LSB;
+  if(VFOSet[v].vfo >= SIDEBAND_THRESHOLD) 
+    bfo = USB;
+  else 
+    bfo = LSB;
 
 // VFO
   Serial.print("VFO=");    Serial.println(VFOSet[v].vfo + bfo);  
-  si5351.set_freq((VFOSet[v].vfo + bfo) * SI5351_FREQ_MULT, SI5351_CLK0); // set CLK0 to  VFO freq for current band 
-  if(VFOSet[v].vfo < VFO_DRIVE_THRESHOLD)
-    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_2MA); 
-  else
-    si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA); 
+  
+#if defined(SS_FAT5_160AM_TX) || defined(SS_VK3SJ_160AM_TX) || defined (SS_VK3SJ_40AM_TX)
+  // nothing
+#else
+  {
+    si5351.set_freq((VFOSet[v].vfo + bfo) * SI5351_FREQ_MULT, SI5351_CLK0); // set CLK0 to  VFO freq for current band 
+    if(VFOSet[v].vfo < VFO_DRIVE_THRESHOLD)
+      si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_2MA); 
+    else
+      si5351.drive_strength(SI5351_CLK0, SI5351_DRIVE_4MA); 
+
+    si5351.output_enable(SI5351_CLK0, 1);  // turn VFO on 
+  }
+#endif
+
+#if defined(SS_FAT5_160AM_TX) || defined(SS_VK3SJ_160AM_TX) || defined(SS_VK3SJ_40AM_TX)
+  si5351.output_enable(SI5351_CLK0, 0);  // turn VFO off 
+  si5351.output_enable(SI5351_CLK1, 0);  // turn CO off 
+  si5351.output_enable(SI5351_CLK2, 0);  // turn BFO off 
+#endif
+
+#if defined(SS_AM_TX_TEST_VFO)
+  si5351.output_enable(SI5351_CLK1, 0);  // turn VFO off 
+  si5351.output_enable(SI5351_CLK2, 0);  // turn BFO off 
+#endif
 
 // BFO
 #ifdef BFO_ENABLED  
@@ -1727,6 +2062,7 @@ void setup()
   */
 #endif
 // end of CW Keyer block -------------------------------------------------------------
+
 }
 
 
@@ -1739,7 +2075,8 @@ void loop()
 #ifdef DISPLAY_OLED
     if(!mode_cw) refresh_display();  // to get around slow OLED refresh slowing down CW sending!
 #endif
-    
+
+   
 #ifdef VSWR_METER
 //-- VSWR meter code begins -------------------------------------------
   fwd_max=0; // resets peak counters each time through loop (this timing may need to change)
@@ -1754,7 +2091,11 @@ void loop()
     bool bfo_change = false; 
     
     f = VFOSet[v].vfo; 
+#if defined(SS_FAT5_160AM_TX) || defined(SS_VK3SJ_160AM_TX) || defined (SS_VK3SJ_40AM_TX)
+    // nothing
+#else
     si5351.set_freq((bfo + f) * SI5351_FREQ_MULT, SI5351_CLK0);  
+#endif
 
     // BFO logic...
     if (f >= SIDEBAND_THRESHOLD )  // f >= 10MHz so use USB 
@@ -1818,7 +2159,8 @@ void loop()
     // stop the fan...
     
   }
-    
+
+  
   //------------------------------------------------------------------------
   // if any of the buttons have been pressed...
   old_button_nbr = 0;  // clear the last command 
@@ -1861,7 +2203,7 @@ void loop()
 
   if (button_nbr == 2) 
   {
-    // Button 2: not used in SP-IV 
+    // Button 2:  
 #ifdef SS_EI9GQ
     // implement 'prev VFO' feature...
     byte v_tmp = v;
@@ -1870,7 +2212,7 @@ void loop()
 #endif
   }; 
 
-  if (button_nbr == 3) {}; // Button 3: not used in SP-IV 
+  if (button_nbr == 3) {};  
 
   if (button_nbr == 4)
   {
