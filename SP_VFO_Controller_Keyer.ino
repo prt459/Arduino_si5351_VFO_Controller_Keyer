@@ -11,6 +11,7 @@ V1.0, 20 Jun 2017 - first version for homebrew Arduino/si5351 VFO
 V1.4, 27 Nov 2018 - revised version with CW keyer for homebrew SP_IV transceiver
 V1.5, 3 Dec 2018  - Refactored #define's and code blocks for project labels
 V1.6  6 Jun 2019  - Added MCP9808 temp sensor (Adafruit)
+V1.7  2 Mar 2020  - Added code for AM transmitters that use one clock only as transmitter VFO at signal frequency 
 
 Labels that need to be #define'd for your target radio/rig/project:
   Rotary encoder         {ENCODER_OPTICAL_360, ENCODER_MECHANICAL} 
@@ -60,8 +61,6 @@ Labels that need to be #define'd for your target radio/rig/project:
 #define FAN_DROPOUT_DELAY  5000  // period of inactivity before the fan drops out to save battery (mS)
 #define VFO_DRIVE_THRESHOLD 18000  // threshold freq above which a higher si5351 clock output level on the VFO clock is used
 #define CO_DRIVE_THRESHOLD  18000  // threshold freq above which a higher si5351 clock output level on the carrier oscillator (CW) clock is used
-
-
 
 
 // specific declarations and #define's for each project
