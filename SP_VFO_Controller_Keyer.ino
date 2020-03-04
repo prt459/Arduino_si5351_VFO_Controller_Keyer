@@ -25,6 +25,7 @@ Labels that need to be #define'd for your target radio/rig/project:
   Tune mS                {TUNE_MS}            Typical value: 3000mS
   Held button mS         {BUTTON_HELD_MS}     Typical value: 700mS
   Diagnostics on display {DIAGNOSTIC_DISPLAY} 
+  VFO/BFO swap between transmit and receive {VFO_BFO_SWAP}
 */
 
 // common libraries
@@ -41,11 +42,11 @@ Labels that need to be #define'd for your target radio/rig/project:
 // #define SP_V         // for code specific to Summit Prowler V rig (2 band G6LBQ BiTx) (8x2 LCD, mechanical encoder)
 // #define SS_EI9GQ     // for code specific to Shack Sloth base station transceiver by Eamon EI9GQ) (20x4 LCD, mechanical encoder)
 // #define SP_VI         // for code specific to DK7IH Compact Multibander (128x64 OLED with SSD1308, mechanical encoder)
-// #define SP_VII         // for code specific to VK3WAC SSDRA Monobander (LCD, optical encoder)
+#define SP_VII         // for code specific to VK3WAC SSDRA Monobander (LCD, optical encoder)
 // #define SS_FAT5_160AM_TX // for code specific to the GW8LLJ (FAT5) 160 AM/CW transmitter/receiver (16x2 LCD, optical encoder)
 // #define SS_VK3SJ_160AM_TX // for code specific to the Laurie VK3SJ's PWM AM transmitter (16x2 LCD, optical encoder)
 // #define SS_AM_TX_TEST_VFO // for code specific to a bench VFO for testing AM transmitters (11/2019)
-#define SS_VK3SJ_40AM_TX // for code specific to the VK3SJ 40m AM transmitter (16x2 LCD, optical encoder)
+// #define SS_VK3SJ_40AM_TX // for code specific to the VK3SJ 40m AM transmitter (16x2 LCD, optical encoder)
 
 
 // common #define's that precede other declarations
@@ -174,17 +175,14 @@ volatile uint32_t LSB = 11996000ULL;  // the reference BFO freq for USB, may be 
 volatile uint32_t USB =  5120000ULL;  // the reference BFO freq for USB, may be tuned, put in EEPROM once
 //volatile uint32_t LSB =  5121500ULL;  // the reference BFO freq for LSB, may be tuned, put in EEPROM once 
 volatile uint32_t LSB =  5116000ULL;  // the reference BFO freq for LSB, may be tuned, put in EEPROM once 
+#define VFO_BFO_SWAP
 #define DISPLAY_LCD
 #define LCD_16X2
 #include <LiquidCrystal.h>
 LiquidCrystal lcd(LCD_RS, LCD_E, LCD_D4, LCD_D5, LCD_D6, LCD_D7); 
 #define NBR_VFOS    4  // number of selectable VFOs 
 #define CW_KEYER       // include the CW keyer code
-// #define DIAGNOSTIC_DISPLAY  // allow use of the OLED for tracing simple values (eg button values)
-//#define TX_SSB_MUTE_LINE 9    // D9 is used to mute the mic amp to silence a T/R squeal in SP_VI 
-                              // normally high, this line goes low TX_SSB_MUTE_DELAY mS after PTT when transmitting SSB
-//#define TX_SSB_MUTE_DELAY 350 // delay (mS) before the mic amp is unmuted after SSB PTT 
-#define CO_SUPPLY  7          // this pin controls a high side DC switch to enable the carrier oscillator when keyed
+#define CO_SUPPLY  7   // this pin controls a high side DC switch to enable the carrier oscillator when keyed
 #endif
 
 
@@ -1278,13 +1276,12 @@ void receive_to_TRANSMIT()
     LPF_engaged = true; 
     last_T_R_ms = millis(); 
 
-    // start the fan...
+    // start the fan, if there is one...
  
   };
   
   digitalWrite(TRANSMIT_LINE, 1); // pull in the T/R relay
   delay(10); 
-  //  changed_f = true;  // make sure the display refreshes
 
   if(mode_cw)
   {
@@ -1332,13 +1329,24 @@ void receive_to_TRANSMIT()
     si5351.output_enable(SI5351_CLK0, 1); 
 
     delay(20);
-    digitalWrite(PWM_ENABLE_LINE, 1);     // enable the PWM    
+    digitalWrite(PWM_ENABLE_LINE, 1);     // enable the Pulse Width Modulator    
 #endif
     
 #ifdef SP_VI
     // mode is SSB, so un-mute the mic amp
     delay(TX_SSB_MUTE_DELAY);
     digitalWrite(TX_SSB_MUTE_LINE, 1); // un-mute the mic amp (to silence a T/R squeal in SP_VI) 
+#endif
+    
+#ifdef VFO_BFO_SWAP
+    // swap the VFO and the BFO on CLK0 and CLK2 for the transmit period
+    si5351.output_enable(SI5351_CLK0, 0);  // turn VFO off 
+    si5351.output_enable(SI5351_CLK2, 0);  // turn BFO off 
+    delay(10);
+    si5351.set_freq(bfo * SI5351_FREQ_MULT, SI5351_CLK0); // set CLK0 to the BFO frequency    
+    si5351.set_freq((VFOSet[v].vfo + bfo) * SI5351_FREQ_MULT, SI5351_CLK2); // set CLK2 to  VFO+IF freq for current band 
+    si5351.output_enable(SI5351_CLK0, 1);  // turn reversed BFO back on 
+    si5351.output_enable(SI5351_CLK2, 1);  // turn reversed VFO back on 
 #endif
   }
 };
@@ -1350,7 +1358,7 @@ void TRANSMIT_to_receive()
   Serial.println("TRANSMIT_to_receive()");
 
 #if defined(SS_FAT5_160AM_TX) || defined(SS_VK3SJ_160AM_TX) || defined(SS_AM_TX_TEST_VFO) || defined (SS_VK3SJ_40AM_TX)
-    digitalWrite(PWM_ENABLE_LINE, 0);     // disable the PWM
+    digitalWrite(PWM_ENABLE_LINE, 0);     // disable the Pulse Width Modulator
     delay(20); 
     si5351.output_enable(SI5351_CLK0, 0); // disable the clock (transmit VFO)
 #endif
@@ -1390,6 +1398,17 @@ void TRANSMIT_to_receive()
     // mode is SSB, so mute the mic amp
     digitalWrite(TX_SSB_MUTE_LINE, 0); // mute the mic amp (to silence a T/R squeal in SP_VI) 
 #endif
+    
+#ifdef VFO_BFO_SWAP
+    // swap the VFO and the BFO on CLK0 and CLK2 back to their normal clocks 
+    si5351.output_enable(SI5351_CLK0, 0);  // turn BFO off 
+    si5351.output_enable(SI5351_CLK2, 0);  // turn VFO off 
+    delay(10);
+    si5351.set_freq(bfo * SI5351_FREQ_MULT, SI5351_CLK2); // set CLK2 to the BFO frequency    
+    si5351.set_freq((VFOSet[v].vfo + bfo) * SI5351_FREQ_MULT, SI5351_CLK0); // set CLK0 to  VFO+IF freq for current band 
+    si5351.output_enable(SI5351_CLK0, 1);  // turn reversed VFO back on 
+    si5351.output_enable(SI5351_CLK2, 1);  // turn reversed BFO back on 
+#endif    
   };
   
   mode_cw = false;  // mode will be set next time the paddle or keyer is touched
