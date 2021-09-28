@@ -31,8 +31,8 @@ Labels that need to be #define'd for your target radio/rig/project:
 
 // common libraries
 #include <Rotary.h>
-#include <si5351.h>     // Etherkit si3531  V2.0.1   https://github.com/etherkit/Si5351Arduino 
-#include <pcf8574.h>    // pcf8574 library by Rob Tillaart 02-febr-201; many others should work 
+#include <si5351.h>     // Etherkit si3531 library from NT7S,  V2.1.4   https://github.com/etherkit/Si5351Arduino 
+#include <PCF8574.h>    // pcf8574 library by Rob Tillaart 0.3.2
 #include <Wire.h>
 #include <EEPROM.h>
 
