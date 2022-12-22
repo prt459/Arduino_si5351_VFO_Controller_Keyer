@@ -61,7 +61,7 @@ Here a a few problems that have been reported byto me by experimenters who have 
    
    **#ifdef SP_V**
    
-      **si5351.set_correction(15500);**    
+      si5351.set_correction(19100);    
    **#endif** 
    
    
@@ -69,5 +69,5 @@ Here a a few problems that have been reported byto me by experimenters who have 
        
 * Having more than one source file open in the Arduino IDE at once -- some people open all the files in the repo (or perhaps the IDE does this for you
    when you open a repository).  This will fail as the repo contains multiple compilable scripts.  You should only ever compile two of the files,
-   the SP_Initialiser script or the main SP_VFO_Controller script.  Only have one of these two files open in the Arduino IDE at a time.  
+   the SP_Initialiser script or the main SP_VFO_Controller script.  **Only have one of these two files open in the Arduino IDE at a time.**  
  
