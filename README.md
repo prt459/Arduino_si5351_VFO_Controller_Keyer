@@ -1,4 +1,4 @@
-# vk3hn_VFO_controller
+# SP_VFO_Controller_Keyer
 A PLL VFO/controller for a multi-band SSB/CW transceiver, targeting Arduino Nano and si5351. The script is SP_VFO_Controller.ino. An initialiser script must be executed once to initialise EEPROM. 
 
 This script has been used for a number of homebrew transceiver, receiver and transmitter projects at VH3HN, each using the Arduino Nano/si5351 combination.  All these projects share this common script.  By using a common script, a bug fixed or parameter changed is done once, in one place only, and gets deployed the next time a particuar transceiver's Arduino is flashed.  
