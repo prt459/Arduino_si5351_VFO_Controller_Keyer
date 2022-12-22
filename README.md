@@ -61,14 +61,15 @@ Here a a few problems that have been reported byto me by experimenters who have 
    The signature to the set_correction() method in Jason's si5351 library changed between releases, the latest version includes a second parameter.
    
    #ifdef SP_V
+   
        si5351.set_correction(15500);    
    #endif 
    
    
-   If this call throws a compiler error, ad din the second argument, as follows:
+   If this call throws a compiler error, add in the second argument, as follows:
        si5351.set_correction(19100, SI5351_PLL_INPUT_XO);
        
 * Having more than one source file open in the Arduino IDE at once -- some people open all the files in the repo (or perhaps the IDE does this for you
-   when you open a repository.  This will fail asthe repo contains multiple compilable scripts.  You should only compile two of the files,
+   when you open a repository).  This will fail as the repo contains multiple compilable scripts.  You should onlyever  compile two of the files,
    the Initialiser or the main VFO_Controller script.  Only have one of these two files open in the Arduino IDE at a time.  
  
