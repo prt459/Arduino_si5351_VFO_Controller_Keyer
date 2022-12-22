@@ -11,8 +11,7 @@ For discussion of this project and some information to help you decide if this i
 
 Please feel free to raise an issue, defect or feature request on Github.  Please let me know if you use this code, with or without change. 
 
- -- Paul Taylor, VK3HN.  25 July 2019.
- -- updated 13/11/2019.
+ -- Paul Taylor, VK3HN.  Created 25 July 2019.
 
 Feature summary:
 * Uses si5351 clock 0 for VFO 
