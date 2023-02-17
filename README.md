@@ -5,7 +5,7 @@ A PLL VFO/controller for a multi-band SSB/CW transceiver, targeting Arduino Nano
 Peter VK3TPM stripped down my 2k lines of code to 200, for a bare bones si5251 VFO.  It thats all you want, then maybe try this. 
 https://bitbucket.org/peter_marks/dc-vfo/src/master/  
 
-When your project needs the additional control features of a more conventional receiver/tranceiver, come back here:
+When your project needs the additional control features of a more conventional receiver/tranceiver, come back here.
 
 This script has been used for a number of homebrew transceiver, receiver and transmitter projects at VH3HN, each using the Arduino Nano/si5351 combination.  All these projects share this common script.  By using a common script, a bug fixed or parameter changed is done once, in one place only, and gets deployed the next time a particuar transceiver's Arduino is flashed.  
 
