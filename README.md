@@ -1,7 +1,7 @@
 # SP_VFO_Controller_Keyer
 A PLL VFO/controller for a multi-band SSB/CW transceiver, targeting Arduino Nano and si5351. The script is SP_VFO_Controller.ino. An initialiser script must be executed once to initialise EEPROM. 
 
-#If you want a stripped down minimal Arduino/si5351 VFO, try this
+# Bare bones Arduino/si5351 VFO alternative
 Peter VK3TPM stripped down my 2k lines of code to 200, for a bare bones si5251 VFO.  It thats all you want, then maybe try this. When your project needs the additional control features of a more conventional receiver/tranceiver, come back here:
 https://bitbucket.org/peter_marks/dc-vfo/src/master/  
 
